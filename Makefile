@@ -1,3 +1,3 @@
 all:
 	mkdir -p build
-	gcc sock_init.c -o ./build/main
+	gcc time_server.c -o ./build/server
