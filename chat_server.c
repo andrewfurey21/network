@@ -106,9 +106,12 @@ int main() {
             continue;
           }
 
-          upper(read, 1);
-            // read[j] = toupper(read[j]);
-          send(socket, read, strlen(read), 0);
+          for (int other = 1; other <= max; other++) {
+            if (FD_ISSET(other, &master)) {
+              if (other == socket || other == socket_listen) continue;
+              send(other, read, received, 0);
+            }
+          }
         }
       }
     }
