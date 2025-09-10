@@ -1,5 +1,8 @@
 #include <arpa/inet.h>
+#include <asm-generic/socket.h>
+#include <netinet/in.h>
 #include <sys/types.h>
+#include <errno.h>
 #include <stdio.h>
 #include <netdb.h>
 #include <string.h>
@@ -10,8 +13,8 @@
 
 int main(void) {
   const int queue_limit = 10;
-  const char* port = "8080";
-  const int version = AF_INET; // ipv4
+  const char* port = "8070";
+  const int version = AF_INET6; // ipv4
 
   struct addrinfo hints;
   memset(&hints, 0, sizeof(hints));
@@ -32,22 +35,27 @@ int main(void) {
     return -1;
   }
 
+  int option = 0;
+  if(setsockopt(listen_descriptor, IPPROTO_IPV6, IPV6_V6ONLY, (void*)&option, sizeof(option))) {
+    printf("Error: setsockopt failed\n");
+    return -1;
+  }
+
+  option = 1;
+  if(setsockopt(listen_descriptor, SOL_SOCKET, SO_REUSEADDR, (void*)&option, sizeof(option))) {
+    printf("Error: setsockopt failed\n");
+    return -1;
+  }
+
   int bind_error = bind(listen_descriptor, bindaddress->ai_addr, bindaddress->ai_addrlen);
-  if (bind_error) {
-    printf("Error: couldn't bind socket to internet address.\n");
+  if (bind_error != 0) {
+    printf("Error: couldn't bind socket to internet address. %d\n", errno);
     return -1;
   }
 
   if (listen(listen_descriptor, queue_limit) < 0) {
     printf("Error: listening failed.\n");
     return -1;
-  } else {
-    struct sockaddr_in *addr = (struct sockaddr_in*)bindaddress->ai_addr;
-    const int max_len = 100;
-    char ap[max_len];
-    inet_ntop(version, addr, ap, max_len);
-    printf("Listening at %s:%s\n", ap, port);
-    fflush(stdout);
   }
 
   struct sockaddr_storage client_address;
@@ -59,7 +67,10 @@ int main(void) {
     return -1;
   }
 
-  printf("Connection made.\n");
+  char address_buffer[100];
+  getnameinfo((struct sockaddr*)&client_address, client_len, address_buffer, sizeof(address_buffer), 0, 0, NI_NUMERICHOST);
+  printf("Connection made with %s\n", address_buffer);
+
   char request[1024];
   int bytes_received = recv(socket_client, request, 1024, 0);
   printf("Recevied %d bytes.\n", bytes_received);
@@ -85,6 +96,8 @@ int main(void) {
 
   close(socket_client);
   close(listen_descriptor);
+
+  freeaddrinfo(bindaddress);
 
   return 0;
 }
