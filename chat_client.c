@@ -37,15 +37,17 @@ int main(int argc, char** argv) {
   printf("%s:%s\n", address, port);
 
 
-  int socket_peer = socket(peer_address->ai_family,
-                           peer_address->ai_socktype,
-                           peer_address->ai_protocol);
+  // server socket structure
+  int socket_peer = socket(peer_address->ai_family, // protocol family
+                           peer_address->ai_socktype, // stream/dgram tcp/udp
+                           peer_address->ai_protocol); // type (close on exec/nonblock)
 
   if (socket_peer < 0) {
     printf("Error: could not create socket\n");
     exit(-1);
   }
 
+  // attempt to make a connection for TCP
   if (connect(socket_peer, peer_address->ai_addr, peer_address->ai_addrlen)) {
     printf("couldn't connect\n");
     exit(-1);
@@ -58,16 +60,19 @@ int main(int argc, char** argv) {
     fd_set reads;
     FD_ZERO(&reads);
     FD_SET(socket_peer, &reads);
-    FD_SET(0, &reads);
+    FD_SET(0, &reads); // add stdin to the fd set
 
     struct timeval timeout;
     timeout.tv_sec = 0;
     timeout.tv_usec = 100000;
 
-    if (select(socket_peer + 1, &reads, 0, 0, &timeout) < 0) {
+    if (select(socket_peer + 1, &reads, 0, 0, 0) < 0) {
       printf("select failed: %d\n", errno);
       exit(-1);
     }
+    // } else {
+    //   printf("select work\n");
+    // }
 
     if (FD_ISSET(socket_peer, &reads)) {
       char read[4096];
@@ -83,7 +88,7 @@ int main(int argc, char** argv) {
 
     if (FD_ISSET(0, &reads)) { // stdin
       char read[4096];
-      if (!fgets(read, sizeof(read), stdin)) {
+      if (!fgets(read, sizeof(read), stdin)) { // stdin is just a pointer to a FILE
         printf("couldn't read stdin\n");
         exit(-1);
       }
